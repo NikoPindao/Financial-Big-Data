@@ -1,0 +1,51 @@
+Period Comparison Statistics
+==============================
+
+
+2023
+----
+Number of cryptocurrencies: 70
+Average daily volume: 17091930293.99
+Market volatility: 2566505740.04%
+Number of regime transitions: 58531
+Average regime duration: 0.4 days
+
+Most common transitions:
+  volatile_bear -> consolidation: 11497
+  volatile_bull -> consolidation: 11462
+  consolidation -> volatile_bull: 11398
+  consolidation -> volatile_bear: 11346
+  consolidation -> stable_bull: 2166
+
+
+2024
+----
+Number of cryptocurrencies: 71
+Average daily volume: 16245976096.89
+Market volatility: 38226164817.85%
+Number of regime transitions: 2626
+Average regime duration: 0.4 days
+
+Most common transitions:
+  consolidation -> volatile_bear: 687
+  volatile_bear -> consolidation: 641
+  volatile_bull -> consolidation: 545
+  consolidation -> volatile_bull: 520
+  volatile_bear -> volatile_bull: 105
+
+
+full_period
+-----------
+Number of cryptocurrencies: 71
+Average daily volume: 12190939449.35
+Market volatility: 1071854894.75%
+Number of regime transitions: 168269
+Average regime duration: 0.4 days
+
+Most common transitions:
+  consolidation -> volatile_bear: 35481
+  volatile_bear -> consolidation: 35461
+  volatile_bull -> consolidation: 35216
+  consolidation -> volatile_bull: 34886
+  volatile_bear -> volatile_bull: 6167
+

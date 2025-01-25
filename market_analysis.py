@@ -2,7 +2,7 @@ from pathlib import Path
 from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
-from typing import Dict, List, Tuple
+from typing import Dict, List
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import networkx as nx
@@ -11,16 +11,11 @@ from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import StandardScaler
 from sklearn.neighbors import NearestNeighbors
 import plotly.express as px
-import traceback
-from sklearn.metrics import silhouette_score
 
 from src.clustering.regime_detection.short_term import ShortTermDetector
 from src.clustering.methods.clustering import KMeansClusterer, GraphClusterer
 from src.visualization.regime_visualizer import RegimeVisualizer
 from src.data_processing.data_merger import CryptoDataMerger
-from src.features.feature_engineering import FeatureEngineer
-from src.clustering.cluster_utils import ClusteringUtils
-from src.models.lstm_regime_predictor import predict_regimes
 
 class MarketAnalyzer:
     def __init__(self):
@@ -228,8 +223,8 @@ class MarketAnalyzer:
         print("Preparing features for clustering...")
         features = pd.DataFrame()
         
-        # Filter out stablecoins and problematic pairs
-        excluded_symbols = ['FDUSD/USDT', 'EUR/USDT', 'USDC/USDT']
+        # Filter out problematic symbols
+        excluded_symbols = ['FDUSD/USDT', 'EUR/USDT', 'USDC/USDT', 'ARKM/USDT', 'INJ/USDT', 'RAY/USDT']
         valid_symbols = [s for s in data.index.get_level_values('symbol').unique() 
                         if s not in excluded_symbols]
         
@@ -240,7 +235,7 @@ class MarketAnalyzer:
                 if df.empty:
                     continue
                 
-                # Calculate core features
+                # Calculate comprehensive features
                 returns = df['close'].pct_change()
                 volume_ma = df['volume'].rolling(window=24).mean()
                 
@@ -248,33 +243,50 @@ class MarketAnalyzer:
                 regimes, _ = self.regime_detector.detect_regime(df)
                 transitions = self.regime_detector.analyze_regime_transitions(regimes)
                 
-                # Calculate key features
+                # Only proceed if we have valid regime transitions
+                if not transitions.empty and 'duration_days' in transitions.columns:
+                    avg_duration = transitions['duration_days'].mean()
+                else:
+                    avg_duration = 0
+                
                 symbol_features = pd.Series({
-                    # Market behavior features
+                    # Price-based features
                     'volatility': returns.std() * np.sqrt(252),
-                    'trend': returns.mean() * 252,
-                    'volume_intensity': (df['volume'] / volume_ma).mean(),
+                    'daily_return': returns.mean() * 252,
+                    'skewness': returns.skew(),
+                    'kurtosis': returns.kurtosis(),
                     
-                    # Regime characteristics
+                    # Volume-based features
+                    'volume_trend': (df['volume'] / volume_ma).mean(),
+                    'volume_volatility': (df['volume'] / volume_ma).std(),
+                    
+                    # Regime-based features
                     'regime_changes': len(regimes['regime'].unique()),
-                    'avg_regime_duration': transitions['duration_days'].mean() if not transitions.empty else 0,
+                    'avg_regime_duration': avg_duration,
                     
-                    # Price dynamics
-                    'price_efficiency': abs(returns).mean() / returns.std(),
-                    'momentum': df['close'].pct_change(24).mean() * 252
+                    # Momentum features
+                    'momentum_1d': df['close'].pct_change(24).mean(),
+                    'momentum_1w': df['close'].pct_change(168).mean(),
+                    
+                    # Additional features for better clustering
+                    'high_low_ratio': (df['high'] / df['low']).mean(),
+                    'price_range': ((df['high'] - df['low']) / df['close']).mean(),
+                    'volume_price_corr': df['volume'].corr(df['close'])
                 })
                 
                 features = pd.concat([features, symbol_features.to_frame(symbol).T])
                 
             except Exception as e:
-                print(f"Error processing {symbol}: {str(e)}")
+                print(f"Error processing {symbol}: {e}")
                 continue
         
         if features.empty:
             raise ValueError("No features could be calculated")
         
-        # Preprocess features
+        # Fill any remaining NaN values with column means
         features = features.fillna(features.mean())
+        
+        # Standardize features
         scaler = StandardScaler()
         scaled_features = pd.DataFrame(
             scaler.fit_transform(features),
@@ -282,90 +294,74 @@ class MarketAnalyzer:
             columns=features.columns
         )
         
-        # Apply clustering methods
+        # Apply different clustering methods
         results = {}
         
-        # 1. K-means clustering
+        # 1. K-means clustering with explicit n_init
         print("Applying K-means clustering...")
-        kmeans = KMeansClusterer(n_clusters=5, n_init=10)
+        kmeans = KMeansClusterer(n_clusters=5, n_init=10)  # Set n_init explicitly
         kmeans_clusters, kmeans_metrics = kmeans.fit(scaled_features)
         results['kmeans'] = {
             'clusters': kmeans_clusters,
             'metrics': kmeans_metrics
         }
         
-        # 2. Enhanced DBSCAN clustering
+        # 2. Enhanced Graph-based clustering (Louvain)
+        print("Applying Louvain clustering...")
+        # Create correlation network with enhanced edge weights
+        corr_matrix = scaled_features.T.corr()
+        G = nx.Graph()
+        
+        # Add edges with weights based on correlation and feature similarity
+        for i in range(len(corr_matrix)):
+            for j in range(i+1, len(corr_matrix)):
+                weight = abs(corr_matrix.iloc[i,j])
+                if weight > 0.3:  # Increased threshold for stronger connections
+                    G.add_edge(corr_matrix.index[i], corr_matrix.index[j], weight=weight)
+        
+        # Apply Louvain method
+        communities = community_louvain.best_partition(G, resolution=1.0)  # Adjust resolution parameter
+        modularity = community_louvain.modularity(communities, G)
+        
+        # Convert to DataFrame
+        louvain_clusters = pd.DataFrame({
+            'cluster': pd.Series(communities),
+            'modularity': modularity
+        }, index=features.index)
+        
+        results['louvain'] = {
+            'clusters': louvain_clusters,
+            'metrics': {
+                'modularity': modularity,
+                'n_communities': len(set(communities.values())),
+                'graph_density': nx.density(G)
+            }
+        }
+        
+        # 3. DBSCAN clustering with optimized parameters
         print("Applying DBSCAN clustering...")
         try:
-            # Calculate optimal DBSCAN parameters
-            from scipy.spatial.distance import pdist, squareform
+            # Convert to numpy array if it's not already
+            feature_array = scaled_features.values if hasattr(scaled_features, 'values') else scaled_features
+            eps, min_samples = self.get_optimal_dbscan_params(feature_array)
             
-            # Compute pairwise distances
-            distances = pdist(scaled_features)
-            dist_matrix = squareform(distances)
-            
-            # Calculate eps using distance distribution
-            k = min(15, len(scaled_features) - 1)
-            knn_distances = np.sort(dist_matrix, axis=0)[1:k+1]
-            eps = np.percentile(knn_distances.mean(axis=0), 75)
-            
-            # Calculate min_samples based on dimensionality and data size
-            min_samples = max(
-                int(np.log2(len(scaled_features))),  # Scale with data size
-                scaled_features.shape[1]  # At least number of features
-            )
-            
-            print(f"DBSCAN parameters: eps={eps:.3f}, min_samples={min_samples}")
-            
-            # Apply DBSCAN
-            dbscan = DBSCAN(
-                eps=eps,
-                min_samples=min_samples,
-                metric='euclidean',
-                n_jobs=-1
-            )
-            labels = dbscan.fit_predict(scaled_features)
-            
-            # Calculate cluster quality metrics
-            n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
-            n_noise = sum(labels == -1)
-            
-            # Calculate silhouette score for non-noise points
-            if n_clusters > 1:
-                non_noise_mask = labels != -1
-                if np.sum(non_noise_mask) > 1:
-                    silhouette = silhouette_score(
-                        scaled_features[non_noise_mask],
-                        labels[non_noise_mask]
-                    )
-                else:
-                    silhouette = 0
-            else:
-                silhouette = 0
+            dbscan = DBSCAN(eps=eps, min_samples=min_samples)
+            dbscan_labels = dbscan.fit_predict(feature_array)
             
             results['dbscan'] = {
                 'clusters': pd.DataFrame({
-                    'cluster': labels,
-                    'noise': labels == -1
+                    'cluster': dbscan_labels,
+                    'noise': dbscan_labels == -1
                 }, index=features.index),
                 'metrics': {
-                    'n_clusters': n_clusters,
-                    'noise_points': n_noise,
-                    'noise_ratio': n_noise / len(labels),
+                    'n_clusters': len(set(dbscan_labels)) - (1 if -1 in dbscan_labels else 0),
+                    'noise_points': sum(dbscan_labels == -1),
                     'eps_used': eps,
-                    'min_samples_used': min_samples,
-                    'silhouette_score': silhouette
+                    'min_samples_used': min_samples
                 }
             }
-            
-            print(f"DBSCAN found {n_clusters} clusters and {n_noise} noise points")
-            print(f"Silhouette score: {silhouette:.3f}")
-            
         except Exception as e:
             print(f"Error in DBSCAN clustering: {str(e)}")
-            traceback.print_exc()
-            
-            # Return default results if DBSCAN fails
             results['dbscan'] = {
                 'clusters': pd.DataFrame({
                     'cluster': np.zeros(len(features)),
@@ -374,88 +370,127 @@ class MarketAnalyzer:
                 'metrics': {
                     'n_clusters': 0,
                     'noise_points': 0,
-                    'noise_ratio': 0.0,
                     'eps_used': 0.0,
-                    'min_samples_used': 3,
-                    'silhouette_score': 0.0
+                    'min_samples_used': 3
                 }
             }
         
-        # 3. Louvain community detection
-        print("Applying Louvain clustering...")
+        # Save Louvain network visualization
         try:
-            # Create correlation network
-            corr_matrix = scaled_features.T.corr()
-            G = nx.Graph()
-            
-            # Add edges with weights based on correlation
-            for i in range(len(corr_matrix)):
-                for j in range(i+1, len(corr_matrix)):
-                    weight = abs(corr_matrix.iloc[i,j])
-                    if weight > 0.3:  # Correlation threshold
-                        G.add_edge(corr_matrix.index[i], corr_matrix.index[j], weight=weight)
-            
-            # Apply Louvain method
-            communities = community_louvain.best_partition(G, resolution=1.0)
-            modularity = community_louvain.modularity(communities, G)
-            
-            results['louvain'] = {
-                'clusters': pd.DataFrame({
-                    'cluster': pd.Series(communities),
-                    'modularity': modularity
-                }, index=features.index),
-                'metrics': {
-                    'modularity': modularity,
-                    'n_communities': len(set(communities.values())),
-                    'graph_density': nx.density(G),
-                    'avg_clustering': nx.average_clustering(G),
-                    'network_size': len(G.nodes())
-                }
-            }
-            
-            print(f"Louvain found {len(set(communities.values()))} communities")
-            print(f"Network modularity: {modularity:.3f}")
-            
-            # Create Louvain visualization
-            self.plot_louvain_communities(
+            self.plot_louvain_network(
                 G, communities, features,
-                str(self.plots_dir / period_name / "market_communities.html")
+                self.plots_dir / period_name / f"louvain_network_{period_name}.html"
             )
-            
         except Exception as e:
-            print(f"Error in Louvain clustering: {str(e)}")
-            results['louvain'] = {
-                'clusters': pd.DataFrame({
-                    'cluster': np.zeros(len(features)),
-                    'modularity': 0
-                }, index=features.index),
-                'metrics': {
-                    'modularity': 0,
-                    'n_communities': 0,
-                    'graph_density': 0,
-                    'avg_clustering': 0,
-                    'network_size': 0
-                }
-            }
+            print(f"Error creating Louvain network visualization: {e}")
+        
+        # Create enhanced clustering comparison
+        try:
+            self.plot_enhanced_clustering_comparison(
+                results, features,
+                self.plots_dir / period_name / f"enhanced_clustering_{period_name}.html"
+            )
+        except Exception as e:
+            print(f"Error creating clustering comparison: {e}")
         
         return results, features
     
-    def plot_clustering_comparison(self, cluster_results: Dict, features: pd.DataFrame, save_path: str):
+    def plot_louvain_network(self, G: nx.Graph, communities: Dict, features: pd.DataFrame, save_path: str):
+        """Create interactive network visualization of Louvain communities"""
+        # Calculate node positions using Force Atlas 2
+        pos = nx.spring_layout(G, k=1/np.sqrt(len(G.nodes())), iterations=50)
+        
+        # Prepare node traces for each community
+        node_traces = []
+        community_colors = px.colors.qualitative.Set3
+        
+        for community_id in set(communities.values()):
+            # Get nodes in this community
+            community_nodes = [node for node, com in communities.items() if com == community_id]
+            
+            # Create node trace
+            node_x = [pos[node][0] for node in community_nodes]
+            node_y = [pos[node][1] for node in community_nodes]
+            
+            # Get node statistics
+            node_stats = features.loc[community_nodes]
+            node_text = [
+                f"Symbol: {node}<br>"
+                f"Volatility: {features.loc[node, 'volatility']:.2%}<br>"
+                f"Daily Return: {features.loc[node, 'daily_return']:.2%}<br>"
+                f"Volume Trend: {features.loc[node, 'volume_trend']:.2f}"
+                for node in community_nodes
+            ]
+            
+            node_trace = go.Scatter(
+                x=node_x, y=node_y,
+                mode='markers+text',
+                name=f'Community {community_id}',
+                text=community_nodes,
+                hovertext=node_text,
+                marker=dict(
+                    size=15,
+                    color=community_colors[community_id % len(community_colors)],
+                    line=dict(width=1, color='white')
+                )
+            )
+            node_traces.append(node_trace)
+        
+        # Create edge traces
+        edge_x = []
+        edge_y = []
+        edge_weights = []
+        
+        for (u, v, d) in G.edges(data=True):
+            x0, y0 = pos[u]
+            x1, y1 = pos[v]
+            edge_x.extend([x0, x1, None])
+            edge_y.extend([y0, y1, None])
+            edge_weights.append(d['weight'])
+        
+        edge_trace = go.Scatter(
+            x=edge_x, y=edge_y,
+            mode='lines',
+            line=dict(width=0.5, color='#888'),
+            hoverinfo='none',
+            showlegend=False
+        )
+        
+        # Create figure
+        fig = go.Figure(data=[edge_trace] + node_traces)
+        
+        fig.update_layout(
+            title='Cryptocurrency Market Structure (Louvain Communities)',
+            showlegend=True,
+            hovermode='closest',
+            margin=dict(b=20,l=5,r=5,t=40),
+            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+            height=800,
+            width=1000
+        )
+        
+        fig.write_html(save_path)
+        return fig
+    
+    def plot_enhanced_clustering_comparison(self, cluster_results: Dict, features: pd.DataFrame, save_path: str):
         """Create enhanced clustering comparison visualization"""
         fig = make_subplots(
-            rows=2, cols=2,
+            rows=3, cols=3,
             subplot_titles=(
-                'K-means Clusters', 'DBSCAN Clusters',
-                'Feature Distribution', 'Cluster Quality'
+                'K-means Clusters', 'Louvain Communities', 'DBSCAN Clusters',
+                'Feature Distribution (K-means)', 'Community Characteristics', 'DBSCAN Groups',
+                'Cluster Stability', 'Community Network', 'Noise Analysis'
             ),
             specs=[
-                [{"type": "scatter"}, {"type": "scatter"}],
-                [{"type": "violin"}, {"type": "bar"}]
+                [{"type": "scatter"}, {"type": "scatter"}, {"type": "scatter"}],
+                [{"type": "box"}, {"type": "heatmap"}, {"type": "violin"}],
+                [{"type": "bar"}, {"type": "scatter3d"}, {"type": "bar"}]
             ]
         )
         
         # Plot clusters (first row)
-        methods = ['kmeans', 'dbscan']
+        methods = ['kmeans', 'louvain', 'dbscan']
         for i, method in enumerate(methods):
             clusters = cluster_results[method]['clusters']
             
@@ -467,7 +502,7 @@ class MarketAnalyzer:
                 fig.add_trace(
                     go.Scatter(
                         x=cluster_features['volatility'],
-                        y=cluster_features['trend'],
+                        y=cluster_features['daily_return'],
                         mode='markers',
                         name=f'{method.capitalize()} {cluster}',
                         text=cluster_features.index,
@@ -476,45 +511,95 @@ class MarketAnalyzer:
                     row=1, col=i+1
                 )
         
-        # Feature distribution by cluster
-        for method in methods:
-            clusters = cluster_results[method]['clusters']
-            fig.add_trace(
-                go.Violin(
-                    x=clusters['cluster'],
-                    y=features['volatility'],
-                    name=f'{method} volatility',
-                    side='positive' if method == 'kmeans' else 'negative'
-                ),
-                row=2, col=1
-            )
-        
-        # Cluster quality metrics
-        quality_metrics = []
-        for method in methods:
-            metrics = cluster_results[method]['metrics']
-            quality_metrics.extend([
-                {'method': method, 'metric': 'silhouette_score', 'value': metrics.get('silhouette_score', 0)},
-                {'method': method, 'metric': 'n_clusters', 'value': metrics['n_clusters']}
-            ])
-            if 'noise_ratio' in metrics:
-                quality_metrics.append(
-                    {'method': method, 'metric': 'noise_ratio', 'value': metrics['noise_ratio']}
-                )
-        
-        metrics_df = pd.DataFrame(quality_metrics)
+        # Second row - detailed analysis
+        # K-means feature distribution
+        kmeans_clusters = cluster_results['kmeans']['clusters']
         fig.add_trace(
-            go.Bar(
-                x=[f"{row['method']}_{row['metric']}" for _, row in metrics_df.iterrows()],
-                y=metrics_df['value'],
-                name='Metrics'
+            go.Box(
+                x=kmeans_clusters['cluster'],
+                y=features['volatility'],
+                name='Volatility'
+            ),
+            row=2, col=1
+        )
+        
+        # Louvain community characteristics
+        community_features = features.groupby(cluster_results['louvain']['clusters']['cluster']).mean()
+        fig.add_trace(
+            go.Heatmap(
+                z=community_features.values,
+                x=community_features.columns,
+                y=[f'Community {i}' for i in range(len(community_features))],
+                colorscale='Viridis'
             ),
             row=2, col=2
         )
         
+        # DBSCAN distribution
+        dbscan_clusters = cluster_results['dbscan']['clusters']
+        fig.add_trace(
+            go.Violin(
+                x=dbscan_clusters['cluster'],
+                y=features['daily_return'],
+                name='Returns'
+            ),
+            row=2, col=3
+        )
+        
+        # Third row - additional analysis
+        # Cluster stability (silhouette scores)
+        silhouette_scores = []
+        for method in methods:
+            if 'silhouette_score' in cluster_results[method]['metrics']:
+                silhouette_scores.append({
+                    'method': method,
+                    'score': cluster_results[method]['metrics']['silhouette_score']
+                })
+        
+        if silhouette_scores:
+            fig.add_trace(
+                go.Bar(
+                    x=[s['method'] for s in silhouette_scores],
+                    y=[s['score'] for s in silhouette_scores],
+                    name='Stability'
+                ),
+                row=3, col=1
+            )
+        
+        # 3D visualization of communities
+        from sklearn.decomposition import PCA
+        pca = PCA(n_components=3)
+        features_3d = pca.fit_transform(features)
+        
+        fig.add_trace(
+            go.Scatter3d(
+                x=features_3d[:, 0],
+                y=features_3d[:, 1],
+                z=features_3d[:, 2],
+                mode='markers',
+                marker=dict(
+                    size=5,
+                    color=cluster_results['louvain']['clusters']['cluster'],
+                    colorscale='Viridis'
+                )
+            ),
+            row=3, col=2
+        )
+        
+        # Noise analysis (DBSCAN)
+        noise_stats = features[dbscan_clusters['noise']].describe()
+        fig.add_trace(
+            go.Bar(
+                x=noise_stats.index,
+                y=noise_stats.values,
+                name='Noise Stats'
+            ),
+            row=3, col=3
+        )
+        
         fig.update_layout(
-            height=1000,
-            title_text="Clustering Analysis Comparison",
+            height=1800,
+            title_text="Enhanced Clustering Analysis",
             showlegend=True
         )
         
@@ -627,17 +712,17 @@ class MarketAnalyzer:
                     cluster_results, features = self.analyze_market_clusters(period_data, period_name)
 
                     # Create clustering visualizations
-                    self.plot_clustering_comparison(
-                        cluster_results,
+                    self.plot_louvain_network(
+                        nx.Graph(corr_matrix),
+                        cluster_results['louvain']['clusters']['cluster'],
                         features,
-                        period_dir / f"clustering_comparison_{period_name}.html"
+                        period_dir / f"louvain_network_{period_name}.html"
                     )
                     
-                    print("\nPerforming LSTM analysis...")
-                    lstm_model, lstm_results = self.analyze_with_lstm(
-                        period_data, 
-                        all_regimes[list(all_regimes.keys())[0]],  # Use first symbol's regimes
-                        period_name
+                    self.plot_enhanced_clustering_comparison(
+                        cluster_results,
+                        features,
+                        period_dir / f"enhanced_clustering_comparison_{period_name}.html"
                     )
                     
                 except Exception as e:
@@ -761,157 +846,40 @@ class MarketAnalyzer:
             print(f"Error creating period comparison: {e}")
             raise
 
-    def analyze_with_lstm(self, data: pd.DataFrame, regimes: pd.DataFrame, period_name: str):
-        """Analyze market regimes using LSTM"""
-        print("\nTraining LSTM model for regime prediction...")
-        
-        # Create directory for LSTM results
-        lstm_dir = self.plots_dir / period_name / "lstm"
-        lstm_dir.mkdir(parents=True, exist_ok=True)
-        
+    def get_optimal_dbscan_params(self, data: np.ndarray) -> tuple:
+        """Calculate optimal DBSCAN parameters"""
         try:
-            model, results = predict_regimes(data, regimes, str(lstm_dir))
+            # Calculate optimal eps
+            nn = NearestNeighbors(n_neighbors=2)
+            nn.fit(data)
+            distances, _ = nn.kneighbors(data)
+            distances = np.sort(distances[:, 1])
             
-            # Save results
-            with open(lstm_dir / "model_results.txt", 'w') as f:
-                f.write("LSTM Model Results\n")
-                f.write("=================\n\n")
-                f.write(f"Test Accuracy: {results['accuracy']:.4f}\n")
-                f.write(f"F1 Score: {results['f1_score']:.4f}\n")
+            try:
+                # Find the elbow point for eps
+                from kneed import KneeLocator
+                knee = KneeLocator(
+                    range(len(distances)), 
+                    distances,
+                    curve='convex',
+                    direction='increasing',
+                    S=1.0  # Increase sensitivity
+                )
+                if knee.elbow is not None:
+                    eps = distances[knee.elbow]
+                else:
+                    eps = np.percentile(distances, 90)
+            except Exception as e:
+                print(f"Error finding elbow point: {str(e)}")
+                eps = np.percentile(distances, 90)
             
-            return model, results
+            # Calculate optimal min_samples based on data size
+            min_samples = max(int(np.log(len(data))), 3)
+            
+            return eps, min_samples
         except Exception as e:
-            print(f"Error in LSTM analysis: {str(e)}")
-            return None, None
-
-    def plot_louvain_communities(self, G: nx.Graph, communities: Dict, features: pd.DataFrame, save_path: str):
-        """Create enhanced network visualization of market communities"""
-        try:
-            # Calculate node positions using Force Atlas 2
-            pos = nx.spring_layout(G, k=1/np.sqrt(len(G.nodes())), iterations=50)
-            
-            # Create figure
-            fig = go.Figure()
-            
-            # Add edges with correlation strength
-            edge_x = []
-            edge_y = []
-            edge_weights = []
-            
-            for (u, v, d) in G.edges(data=True):
-                x0, y0 = pos[u]
-                x1, y1 = pos[v]
-                edge_x.extend([x0, x1, None])
-                edge_y.extend([y0, y1, None])
-                edge_weights.append(d['weight'])
-            
-            # Add edges with varying opacity based on correlation
-            fig.add_trace(
-                go.Scatter(
-                    x=edge_x, y=edge_y,
-                    mode='lines',
-                    line=dict(
-                        width=np.array(edge_weights) * 2,  # Width based on correlation
-                        color='rgba(128, 128, 128, 0.3)'
-                    ),
-                    hoverinfo='none',
-                    showlegend=False
-                )
-            )
-            
-            # Add nodes for each community
-            community_colors = px.colors.qualitative.Set3
-            community_stats = {}
-            
-            for community_id in set(communities.values()):
-                # Get nodes in this community
-                community_nodes = [node for node, com in communities.items() if com == community_id]
-                
-                # Calculate community statistics
-                community_features = features.loc[community_nodes]
-                avg_stats = community_features.mean()
-                community_stats[community_id] = {
-                    'size': len(community_nodes),
-                    'avg_volatility': avg_stats['volatility'],
-                    'avg_trend': avg_stats['trend'],
-                    'avg_volume': avg_stats['volume_intensity']
-                }
-                
-                # Create node trace
-                node_x = [pos[node][0] for node in community_nodes]
-                node_y = [pos[node][1] for node in community_nodes]
-                
-                # Create hover text with detailed statistics
-                hover_text = [
-                    f"Symbol: {node}<br>"
-                    f"Community: {community_id}<br>"
-                    f"Volatility: {features.loc[node, 'volatility']:.2%}<br>"
-                    f"Trend: {features.loc[node, 'trend']:.2%}<br>"
-                    f"Volume Intensity: {features.loc[node, 'volume_intensity']:.2f}<br>"
-                    f"Connections: {len(list(G.neighbors(node)))}"
-                    for node in community_nodes
-                ]
-                
-                fig.add_trace(
-                    go.Scatter(
-                        x=node_x, y=node_y,
-                        mode='markers+text',
-                        name=f'Community {community_id}',
-                        text=community_nodes,
-                        hovertext=hover_text,
-                        hoverinfo='text',
-                        marker=dict(
-                            size=15,
-                            color=community_colors[community_id % len(community_colors)],
-                            line=dict(width=1, color='white')
-                        ),
-                        textposition='top center'
-                    )
-                )
-            
-            # Update layout
-            fig.update_layout(
-                title=dict(
-                    text='Cryptocurrency Market Communities<br>'
-                         f'<sup>Modularity: {community_louvain.modularity(communities, G):.3f}, '
-                         f'Communities: {len(set(communities.values()))}</sup>',
-                    x=0.5,
-                    y=0.95
-                ),
-                showlegend=True,
-                hovermode='closest',
-                margin=dict(b=20, l=5, r=5, t=60),
-                xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-                yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-                height=800,
-                width=1000,
-                plot_bgcolor='white'
-            )
-            
-            # Add community statistics annotation
-            stats_text = []
-            for com_id, stats in community_stats.items():
-                stats_text.append(
-                    f"Community {com_id} ({stats['size']} nodes):<br>"
-                    f"  Avg Vol: {stats['avg_volatility']:.2%}<br>"
-                    f"  Avg Trend: {stats['avg_trend']:.2%}"
-                )
-            
-            fig.add_annotation(
-                text='<br>'.join(stats_text),
-                xref="paper", yref="paper",
-                x=1.02, y=0.98,
-                showarrow=False,
-                font=dict(size=10),
-                align="left"
-            )
-            
-            fig.write_html(save_path)
-            return fig
-            
-        except Exception as e:
-            print(f"Error creating Louvain visualization: {str(e)}")
-            return None
+            print(f"Error calculating DBSCAN parameters: {str(e)}")
+            return 0.5, 3  # Default values
 
 def main():
     analyzer = MarketAnalyzer()
