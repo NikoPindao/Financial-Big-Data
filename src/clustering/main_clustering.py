@@ -58,7 +58,6 @@ def main(symbol="BTC/USDT"):
         }, index=features.index)
     }
     
-    # Visualize results
     print("Creating visualizations...")
     visualizer.plot_cluster_comparison(df, clusters_dict, symbol)
     visualizer.plot_optimal_clusters(optimal_k, silhouette_scores)

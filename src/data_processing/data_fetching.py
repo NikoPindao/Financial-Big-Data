@@ -40,13 +40,7 @@ class CryptoDataFetcher:
 
     def get_top_symbols(self, limit=100):
         """
-        Get the top cryptocurrency trading pairs by volume.
-        
-        Args:
-            limit (int): Number of top pairs to retrieve (default: 100)
-            
-        Returns:
-            list: Top trading pairs
+        Calcule les top 100 symboles par volume
         """
         logging.info(f"Fetching top {limit} symbols by volume...")
         
@@ -66,8 +60,6 @@ class CryptoDataFetcher:
             
             top_pairs = sorted(volumes.items(), key=lambda x: x[1], reverse=True)[:limit]
             symbols = [pair[0] for pair in top_pairs]
-            
-            # Save symbols to file
             with open(self.raw_dir / "top_symbols.json", "w") as f:
                 json.dump(symbols, f)
             
@@ -178,7 +170,7 @@ class CryptoDataFetcher:
 
 def engineer_features(df):
     """
-    Create features for regime detection.
+    Crée les features pour le market regime, à modifier si jamais
     """
     features = pd.DataFrame()
     

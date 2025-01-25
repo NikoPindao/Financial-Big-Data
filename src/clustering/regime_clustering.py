@@ -194,17 +194,14 @@ def main():
     """Example usage of regime detection."""
     from data_processing.data_fetching import CryptoDataFetcher
     
-    # Initialize classes
     detector = MarketRegimeDetector()
     fetcher = CryptoDataFetcher()
     
-    # Load data for BTC
     df = fetcher.load_symbol_data("BTC/USDT")
     
-    # Detect regimes
+    #A noter, on peut aussi utiliser le market regime déjà calculé dans le data merger, a changer si jamais
     regimes_df = detector.detect_regimes(df)
     
-    # Plot analysis
     detector.plot_regime_analysis(df, regimes_df, "BTC/USDT")
 
 if __name__ == "__main__":
