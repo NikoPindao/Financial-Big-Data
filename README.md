@@ -75,8 +75,8 @@ Run the entire analysis pipeline with custom parameters:
 ```bash
 python main.py \
     --fetch_data True \
-    --start_date "2020-01-01" \
-    --end_date "2024-12-31" \
+    --start_date "2020-01-01 00:00:00" \
+    --end_date "2024-12-31 23:59:59" \
     --top_n 100 \
     --market_analysis True \
     --period "full_period" \
@@ -87,7 +87,7 @@ Example combinations:
 We ran for the full period with the following command with 100 assets
 ```bash
 # Only fetch recent data
-python main.py --fetch_data True --start_date "2020-01-01" --end_date "2024-12-31"
+python main.py --fetch_data True --start_date "2020-01-01 00:00:00" --end_date "2024-12-31 23:59:59"
 python main.py --market_analysis True --lstm_analysis True
 
 ```
