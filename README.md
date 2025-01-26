@@ -73,14 +73,8 @@ python main.py --lstm_analysis True
 ### 4. Complete Pipeline
 Run the entire analysis pipeline with custom parameters:
 ```bash
-python main.py \
-    --fetch_data True \
-    --start_date "2020-01-01 00:00:00" \
-    --end_date "2024-12-31 23:59:59" \
-    --top_n 100 \
-    --market_analysis True \
-    --period "full_period" \
-    --lstm_analysis True
+python main.py --fetch_data True --start_date "2020-01-01 00:00:00" --end_date "2024-12-31 23:59:59" --top_n 100 --market_analysis True --period "full_period"
+--lstm_analysis True
 ```
 
 Example combinations:
