@@ -69,4 +69,7 @@ crypto-regime-analysis/
 │   ├── clustering/          # Clustering algorithms
 │   ├── data_processing/     # Data preparation
 │   ├── models/              # LSTM implementation
+├── main.py                  # Main file to run the project
+├── market_analysis.py      # Market analysis
+├── lstm_analysis.py        # LSTM analysis
 ```
