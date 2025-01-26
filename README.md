@@ -4,7 +4,7 @@ Financial Big Data Project: clustering cryptocurrencies and identifying market r
 <div align="center">
 <h1>Cryptocurrency Market Regime Analysis: LSTM and Clustering Approach</h1>
 <div>
-    Anders Hominal - 297073, Niko Pindao - 314958, Adam Ezzaim - 325748
+    Anders Hominal - 297073, Niko Pindao - 314958 & Adam Ezzaim - 325748
 </div>
 </div>
 
@@ -107,6 +107,7 @@ crypto-regime-analysis/
 ├── main.py                  # Main file to run the project
 ├── market_analysis.py       # Market analysis
 ├── lstm_analysis.py         # LSTM analysis
+├── report.pdf               # Report
 ```
 
 ## Generated Plots
