@@ -1,0 +1,16 @@
+# Data Processing & Storage
+pandas>=2.0.0
+numpy>=1.24.0
+pyarrow>=12.0.0    # For parquet files
+tqdm>=4.65.0       # Progress bars
+ccxt>=4.1.0        # Crypto exchange API
+scikit-learn>=1.2.0
+networkx>=3.0.0
+python-louvain>=0.16  # For Louvain method
+ta>=0.10.0        # Technical analysis
+kneed>=0.10.0
+plotly>=5.13.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+jupyter>=1.0.0
+notebook>=7.0.0 
