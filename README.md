@@ -22,17 +22,23 @@ Please refer to the requirements.txt file for the required packages.
 ```
 
 ## Installation
+#### Clone the repository (ssh)
 ```bash
-# Clone the repository (ssh)
 git clone git@github.com:NikoPindao/Financial-Big-Data.git
+```
 
-# Create a virtual environment
+#### Create a virtual environment
+```bash
 conda create -n <your_env_name> python=3.10
+```
 
-# Activate the virtual environment
+#### Activate the virtual environment
+```bash
 conda activate <your_env_name>
+```
 
-# Install requirements
+#### Install requirements
+```bash
 pip install -r requirements.txt
 ```
 
@@ -52,6 +58,11 @@ python market_analysis.py
 python lstm_analysis.py
 ```
 
+### Run main.py to run both market analysis and lstm analysis with plots and prior data fetching
+```bash
+python main.py
+```
+
 ## Directory Structure
 ```
 crypto-regime-analysis/
@@ -63,8 +74,3 @@ crypto-regime-analysis/
 │   ├── data_processing/     # Data preparation
 │   ├── models/              # LSTM implementation
 ```
-
-```
-
-## License
-This project is licensed under the MIT License - see the LICENSE file for details.

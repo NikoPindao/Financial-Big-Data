@@ -174,8 +174,7 @@ def engineer_features(df):
     return features
 
 def main():
-    """Main function to demonstrate usage."""
-    # Example usage
+    """Exemple usage"""
     START_DATE = "2020-07-01 00:00:00"
     END_DATE = "2024-12-31 00:00:00"
     

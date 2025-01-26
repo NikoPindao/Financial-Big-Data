@@ -5,7 +5,7 @@ from plotly.subplots import make_subplots
 import plotly.express as px
 from pathlib import Path
 
-class ResultsVisualizer:
+class LSTMVisualizer:
     def __init__(self):
         self.plots_dir = Path("data/plots/classification_results")
         self.plots_dir.mkdir(parents=True, exist_ok=True)
@@ -293,13 +293,10 @@ class ResultsVisualizer:
         fig.write_html(self.plots_dir / "summary_dashboard.html")
 
 def main():
-    # Example usage
-    visualizer = ResultsVisualizer()
+    visualizer = LSTMVisualizer()
     
-    # Load your results and create visualizations
-    # This is just an example - replace with your actual data
     from src.models.lstm_forecasting import main as run_lstm
-    results = run_lstm()  # This should return the results dictionary
+    results = run_lstm()
     
     if results:
         visualizer.create_summary_dashboard(results)

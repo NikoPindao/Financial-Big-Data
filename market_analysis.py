@@ -14,7 +14,6 @@ import plotly.express as px
 
 from src.clustering.regime_detection.short_term import ShortTermDetector
 from src.clustering.methods.clustering import KMeansClusterer, GraphClusterer
-from src.visualization.regime_visualizer import RegimeVisualizer
 from src.data_processing.data_merger import CryptoDataMerger
 
 class MarketAnalyzer:
@@ -26,7 +25,6 @@ class MarketAnalyzer:
         # Initialize components
         self.merger = CryptoDataMerger()
         self.regime_detector = ShortTermDetector()
-        self.visualizer = RegimeVisualizer()
     
     def analyze_market_regimes(self, data: pd.DataFrame) -> Dict:
         """Analyze market-wide regime distribution"""
