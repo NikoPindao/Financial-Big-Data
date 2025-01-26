@@ -4,6 +4,8 @@ import pandas as pd
 import numpy as np
 from typing import Dict, Tuple, Optional
 
+#Base class for regime detection, regim detection is used to detect the market regime
+
 @dataclass
 class BaseThresholds:
     """Base thresholds for regime classification"""

@@ -31,7 +31,6 @@ class KMeansClusterer(BaseClusterer):
     def fit(self, features: pd.DataFrame) -> Tuple[pd.DataFrame, Dict]:
         scaled_features = self.preprocess_features(features)
         
-        # Fit K-means with explicit n_init
         kmeans = KMeans(
             n_clusters=self.n_clusters, 
             random_state=42,
@@ -43,7 +42,6 @@ class KMeansClusterer(BaseClusterer):
         silhouette = silhouette_score(scaled_features, labels)
         inertia = kmeans.inertia_
         
-        # Create results
         clusters = pd.DataFrame({
             'cluster': labels,
             'silhouette': silhouette
@@ -77,11 +75,10 @@ class GraphClusterer(BaseClusterer):
                 if abs(corr_matrix[i,j]) > self.threshold:
                     G.add_edge(i, j, weight=abs(corr_matrix[i,j]))
         
-        # Apply Louvain clustering
+        # Apply Louvain clustering - using the best partition
         communities = community_louvain.best_partition(G)
         modularity = community_louvain.modularity(communities, G)
         
-        # Create results
         clusters = pd.DataFrame({
             'cluster': pd.Series(communities),
             'modularity': modularity

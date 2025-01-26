@@ -19,19 +19,12 @@ logging.basicConfig(
 
 class CryptoDataFetcher:
     def __init__(self, exchange_id='binance', rate_limit=1200):
-        """
-        Initialize the CryptoDataFetcher with specified exchange.
-        
-        Args:
-            exchange_id (str): The exchange ID (default: 'binance')
-            rate_limit (int): Rate limit in milliseconds (default: 1200)
-        """
         self.exchange = ccxt.binance({
             "rateLimit": rate_limit,
             "enableRateLimit": True
         })
         self.data_dir = Path("data")
-        self.raw_dir = self.data_dir / "test"  # Changed from 'raw' to 'test'
+        self.raw_dir = self.data_dir / "raw"
         self._setup_directories()
 
     def _setup_directories(self):
@@ -70,15 +63,6 @@ class CryptoDataFetcher:
             raise
 
     def load_symbol_data(self, symbol):
-        """
-        Load data for a specific symbol from parquet file.
-        
-        Args:
-            symbol (str): Trading pair symbol (e.g., 'BTC/USDT')
-            
-        Returns:
-            pd.DataFrame: DataFrame containing the symbol's data
-        """
         file_path = self.raw_dir / f"{symbol.replace('/', '_')}_data.parquet"
         if not file_path.exists():
             raise FileNotFoundError(f"No data file found for {symbol} at {file_path}")
@@ -103,9 +87,7 @@ class CryptoDataFetcher:
         """
         since = int(datetime.strptime(start_date, "%Y-%m-%d %H:%M:%S").timestamp() * 1000)
         end_time = int(datetime.strptime(end_date, "%Y-%m-%d %H:%M:%S").timestamp() * 1000)
-        
         all_data = []
-        
         while since < end_time:
             for attempt in range(retries):
                 try:
@@ -195,7 +177,7 @@ def main():
     """Main function to demonstrate usage."""
     # Example usage
     START_DATE = "2020-07-01 00:00:00"
-    END_DATE = "2024-01-01 00:00:00"
+    END_DATE = "2024-12-31 00:00:00"
     
     fetcher = CryptoDataFetcher()
     fetcher.fetch_all_crypto_data(START_DATE, END_DATE)

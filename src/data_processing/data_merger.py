@@ -9,6 +9,8 @@ class CryptoDataMerger:
     def __init__(self):
         self.data_dir = Path("data")
         self.raw_dir = self.data_dir / "raw"
+
+        #Create the processed directory if it doesn't exist, you can later save data there if needed
         self.processed_dir = self.data_dir / "processed"
         self.processed_dir.mkdir(parents=True, exist_ok=True)
         
@@ -60,12 +62,3 @@ class CryptoDataMerger:
         if end_date:
             merged_df = merged_df[merged_df.index.get_level_values('timestamp') <= end_date]
         return merged_df
-
-def main():
-    merger = CryptoDataMerger()
-    merged_df = merger.merge_crypto_data(save=True)    
-    btc_data = merger.get_symbol_data(merged_df, "BTC/USDT")
-    recent_data = merger.get_date_range_data(merged_df, "2023-01-01", "2024-01-01")
-
-if __name__ == "__main__":
-    main() 

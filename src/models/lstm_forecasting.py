@@ -56,11 +56,10 @@ class RegimePredictionTester:
         """Prepare enhanced feature set for LSTM"""
         features = {}
         
-        # Price-based features
         returns = df['close'].pct_change().replace([np.inf, -np.inf], np.nan)
         log_returns = np.log(df['close']).diff().replace([np.inf, -np.inf], np.nan)
         
-        # Calculate rolling features with min_periods to avoid initial NaNs
+        #Features we use for the LSTM
         features.update({
             'returns': returns,
             'log_returns': log_returns,
@@ -68,30 +67,26 @@ class RegimePredictionTester:
             'volatility_24h': returns.rolling(window=24, min_periods=1).std(),
             'trend_5h': returns.rolling(window=5, min_periods=1).mean(),
             'trend_24h': returns.rolling(window=24, min_periods=1).mean(),
-            'price_range': ((df['high'] - df['low']) / df['close']).clip(-10, 10)  # Clip extreme values
+            'price_range': ((df['high'] - df['low']) / df['close']).clip(-10, 10) 
         })
         
-        # Volume-based features with safety checks
+        #We clip extreme values for features
         volume_ma = df['volume'].rolling(window=24, min_periods=1).mean()
-        volume_ma = volume_ma.replace(0, df['volume'].mean())  # Avoid division by zero
-        
+        volume_ma = volume_ma.replace(0, df['volume'].mean()) 
         volume_change = df['volume'].pct_change().replace([np.inf, -np.inf], np.nan)
         volume_std = df['volume'].rolling(window=24, min_periods=1).std()
         
         features.update({
-            'volume_intensity': (df['volume'] / volume_ma).clip(0, 10),  # Clip extreme values
+            'volume_intensity': (df['volume'] / volume_ma).clip(0, 10),
             'volume_change': volume_change.clip(-10, 10),
             'volume_volatility': (volume_std / volume_ma).clip(0, 10)
         })
         
-        # Technical indicators with safety checks
-        # RSI
         rsi = self.calculate_rsi(df['close'])
         features['rsi'] = rsi.clip(0, 100)  # RSI should be between 0 and 100
         
         # MACD
         macd, signal, hist = self.calculate_macd(df['close'])
-        # Normalize MACD values
         max_macd = max(abs(macd.max()), abs(macd.min()))
         max_signal = max(abs(signal.max()), abs(signal.min()))
         max_hist = max(abs(hist.max()), abs(hist.min()))
@@ -109,30 +104,18 @@ class RegimePredictionTester:
             'bb_width': bb_width.clip(0, 5)  # Clip extreme width values
         })
         
-        # Create DataFrame with named columns
         features_df = pd.DataFrame(features)
-        
-        # Handle missing values
         features_df = features_df.ffill().bfill()
-        
-        # Replace any remaining infinities
         features_df = features_df.replace([np.inf, -np.inf], np.nan)
-        
-        # Fill any remaining NaNs with 0
         features_df = features_df.fillna(0)
-        
-        # Ensure all columns are numeric and finite
         features_df = features_df.astype(float)
         
-        # Final safety check
+        #Prevent non-finite values
         if not np.all(np.isfinite(features_df)):
             raise ValueError("Features contain non-finite values after processing")
         
-        # Scale features
         try:
             scaled_features = self.scaler.fit_transform(features_df)
-            
-            # Verify scaled features are finite
             if not np.all(np.isfinite(scaled_features)):
                 raise ValueError("Scaled features contain non-finite values")
             
@@ -245,7 +228,7 @@ class RegimePredictionTester:
             optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
             
             # Training
-            num_epochs = 5  # Reduced to 5 epochs
+            num_epochs = 5  #You can do more than 5 periods
             batch_size = 32
             train_losses = []
             val_accuracies = []

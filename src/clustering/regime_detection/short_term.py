@@ -7,6 +7,8 @@ from typing import Dict, Tuple
 @dataclass
 class ShortTermThresholds(BaseThresholds):
     """Thresholds for short-term regime detection (1-7 days)"""
+    
+    #We use the same thresholds for all assets, change the parameters to adapt if needed
     def __init__(self):
         super().__init__(
             volatility_threshold=0.02,  # 2% daily volatility
@@ -18,11 +20,8 @@ class ShortTermThresholds(BaseThresholds):
 class ShortTermDetector(BaseRegimeDetector):
     """
     Short-term regime detector (1-7 days)
-    - Uses hourly data
-    - Focuses on rapid regime changes
-    - More sensitive to volume spikes
     """
-    
+
     def __init__(self):
         super().__init__(
             window_size=24,  # 24 hours
@@ -34,21 +33,16 @@ class ShortTermDetector(BaseRegimeDetector):
         """Prepare features for short-term analysis"""
         features = pd.DataFrame(index=df.index)
         
-        # Basic returns and volatility
+        # Basic returns and volatility, we do a mix between 24H and 1H
         returns = df['close'].pct_change()
         features['hourly_returns'] = returns
         features['daily_returns'] = df['close'].pct_change(24)
         features['volatility'] = returns.rolling(self.window_size).std() * np.sqrt(24)
-        
-        # Volume analysis
         features['volume_ma'] = df['volume'].rolling(self.window_size).mean()
         features['volume_ratio'] = df['volume'] / features['volume_ma']
         
-        # Trend analysis
         features['trend_direction'] = np.sign(features['daily_returns'])
         features['trend_strength'] = features['trend_direction'].rolling(self.window_size).mean().abs()
-        
-        # Momentum
         features['momentum'] = df['close'].pct_change(self.window_size)
         
         return features
@@ -57,26 +51,20 @@ class ShortTermDetector(BaseRegimeDetector):
         """Detect short-term market regime"""
         features = self.prepare_features(df)
         
-        # Define regime conditions
         regimes = pd.DataFrame(index=features.index)
         
-        # Bullish conditions
         bull_conditions = (
             (features['daily_returns'] > self.thresholds.return_threshold) &
             (features['trend_strength'] > self.thresholds.trend_threshold)
         )
-        
-        # Bearish conditions
         bear_conditions = (
             (features['daily_returns'] < -self.thresholds.return_threshold) &
             (features['trend_strength'] > self.thresholds.trend_threshold)
         )
         
-        # High volatility condition
         high_vol = features['volatility'] > self.thresholds.volatility_threshold
         
-        # Assign regimes
-        regimes['regime'] = 'consolidation'  # default
+        regimes['regime'] = 'consolidation'  
         regimes.loc[bull_conditions & ~high_vol, 'regime'] = 'stable_bull'
         regimes.loc[bull_conditions & high_vol, 'regime'] = 'volatile_bull'
         regimes.loc[bear_conditions & ~high_vol, 'regime'] = 'stable_bear'
@@ -122,8 +110,7 @@ class ShortTermDetector(BaseRegimeDetector):
                 (transitions_df['from_regime'].str.contains('bear') & transitions_df['to_regime'].str.contains('bull'))
             )
             
-            # Calculate transition probabilities
-            total_transitions = len(transitions_df)
+            #We calculate the transition probabilities
             transition_probs = {}
             for from_regime in transitions_df['from_regime'].unique():
                 from_mask = transitions_df['from_regime'] == from_regime
@@ -132,7 +119,7 @@ class ShortTermDetector(BaseRegimeDetector):
                     prob = (from_mask & to_mask).sum() / from_mask.sum()
                     transition_probs[f"{from_regime}_to_{to_regime}"] = prob
             
-            # Add summary statistics
+            #Final summary
             transitions_df.attrs['transition_probabilities'] = transition_probs
             transitions_df.attrs['avg_regime_duration'] = transitions_df['duration'].mean()
             transitions_df.attrs['most_common_transition'] = (
