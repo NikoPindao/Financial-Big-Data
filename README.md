@@ -2,13 +2,10 @@
 Financial Big Data Project: clustering cryptocurrencies and identifying market regimes (stable bull, stable bear, volatile bull, volatile bear, consolidation)
 
 <div align="center">
-
 <h1>Cryptocurrency Market Regime Analysis: LSTM and Clustering Approach</h1>
-
 <div>
-    Anders Hominal - 297073, Niko Pindao - xxxx, Adam Ezzaim - xxx
+    Anders Hominal - 297073, Niko Pindao - 314958, Adam Ezzaim - 325748
 </div>
-mgs/system_overview.jpg"  width="95%" height="100%">
 </div>
 
 ---

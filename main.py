@@ -1,6 +1,7 @@
 from market_analysis import MarketAnalyzer
 from lstm_analysis import LSTMVisualizer
 from src.models.lstm_forecasting import main as run_lstm
+from src.data_processing.data_fetching import main as run_data_fetching
 
 def run_market_analysis():
     analyzer = MarketAnalyzer()
@@ -42,7 +43,11 @@ def run_lstm_analysis():
     return
 
 def main():
+    #Run data fetching first from the last 4 years (2020-2024) and save it to data/raw as parquet files
+    run_data_fetching()
+    #Run market analysis to get the market regimes and output it to data/plots/market_analysis
     run_market_analysis()
+    #Run lstm analysis to get the lstm predictions and output it to data/plots/lstm_analysis
     run_lstm_analysis()
 
 if __name__ == "__main__":
