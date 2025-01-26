@@ -19,7 +19,6 @@ Overview of our market regime detection system. We combine LSTM neural networks 
 
 ## Requirements
 Please refer to the requirements.txt file for the required packages.
-```
 
 ## Installation
 #### Clone the repository (ssh)
