@@ -228,7 +228,7 @@ class RegimePredictionTester:
             optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
             
             # Training
-            num_epochs = 5  #You can do more than 5 periods
+            num_epochs = 6  #You can do more than 5 epochs
             batch_size = 32
             train_losses = []
             val_accuracies = []

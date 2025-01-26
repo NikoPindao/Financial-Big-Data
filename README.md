@@ -65,7 +65,7 @@ Available periods:
 - `None`: Run analysis for all periods (default)
 
 ### 3. LSTM Analysis
-Run LSTM analysis and generate prediction metrics:
+Run LSTM analysis and generate prediction metrics, by default it will train on 6 epochs and batch size of 32:
 ```bash
 python main.py --lstm_analysis True
 ```
