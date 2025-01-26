@@ -66,6 +66,7 @@ Available periods:
 
 ### 3. LSTM Analysis
 Run LSTM analysis and generate prediction metrics, by default it will train on 6 epochs and batch size of 32:
+Note that it runs by defaults on BNB, ETH and Bitcoin. Modify directly in the `lstm_analysis.py` file if you want to change the assets.
 ```bash
 python main.py --lstm_analysis True
 ```
