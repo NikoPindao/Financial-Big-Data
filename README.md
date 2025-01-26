@@ -84,7 +84,7 @@ python main.py \
 ```
 
 Example combinations:
-We ran for the full period with the following command we 100 assets
+We ran for the full period with the following command with 100 assets
 ```bash
 # Only fetch recent data
 python main.py --fetch_data True --start_date "2020-01-01" --end_date "2024-12-31"
