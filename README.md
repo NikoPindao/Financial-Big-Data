@@ -51,7 +51,7 @@ Parameters:
 - `top_n`: Number of top cryptocurrencies by volume to analyze (default: 100)
 
 #### Option 2: Use Pre-downloaded Data
-If you have downloaded the data from WeTransfer, place it in the `data/raw` directory.
+You can download the data from [here](https://drive.google.com/drive/folders/1_ZTwo38ZC8DvMJ61xCt6zYiWw192YLgo?usp=sharing), place it in the `data/raw` directory. The data is in parquet format, and the 'data/raw' directory should contain 101 files. You can safely replace the `top_simbols.py`. The pre-downloaded data is for 100 assets for the full period (2020-01-01 to 2024-12-31).
 
 ### 2. Market Analysis
 Run clustering market analysis for specific periods:
