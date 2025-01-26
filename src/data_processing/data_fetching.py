@@ -172,14 +172,3 @@ def engineer_features(df):
     features['momentum_1w'] = df['close'].pct_change(168)
     
     return features
-
-def main():
-    """Exemple usage"""
-    START_DATE = "2020-07-01 00:00:00"
-    END_DATE = "2024-12-31 00:00:00"
-    
-    fetcher = CryptoDataFetcher()
-    fetcher.fetch_all_crypto_data(START_DATE, END_DATE)
-
-if __name__ == "__main__":
-    main() 

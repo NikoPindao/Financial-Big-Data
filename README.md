@@ -38,38 +38,85 @@ conda activate <your_env_name>
 pip install -r requirements.txt
 ```
 
-## Data Collection
-### Download historical data from the binance API from 2020-01-01 to 2024-12-31. It used the top 100 cryptocurrencies traded by volume. We download hourly data.
+## Usage
+### 1. Data Collection
+#### Option 1: Download from Binance API
+Download historical data from the Binance API with customizable parameters:
 ```bash
-python src/data_processing/data_fetching.py
+python main.py --fetch_data True --start_date "2020-01-01" --end_date "2024-12-31" --top_n 100
+```
+Parameters:
+- `start_date`: Start date for data collection (default: "2020-01-01")
+- `end_date`: End date for data collection (default: "2024-12-31")
+- `top_n`: Number of top cryptocurrencies by volume to analyze (default: 100)
+
+#### Option 2: Use Pre-downloaded Data
+If you have downloaded the data from WeTransfer, place it in the `data/raw` directory.
+
+### 2. Market Analysis
+Run clustering market analysis for specific periods:
+```bash
+python main.py --market_analysis True --period "2023"
+```
+Available periods:
+- `"2023"`: Analysis for year 2023 (2023-01-01 to 2023-12-31)
+- `"2024"`: Analysis for year 2024 (2024-01-01 to 2024-12-31)
+- `"full_period"`: Complete analysis (2020-01-01 to 2024-12-31)
+- `None`: Run analysis for all periods (default)
+
+### 3. LSTM Analysis
+Run LSTM analysis and generate prediction metrics:
+```bash
+python main.py --lstm_analysis True
 ```
 
-### Run clustering market analysis and outplut plots in data/plot/market_analysis directory
+### 4. Complete Pipeline
+Run the entire analysis pipeline with custom parameters:
 ```bash
-python market_analysis.py
+python main.py \
+    --fetch_data True \
+    --start_date "2020-01-01" \
+    --end_date "2024-12-31" \
+    --top_n 100 \
+    --market_analysis True \
+    --period "full_period" \
+    --lstm_analysis True
 ```
 
-### Run lstm analysis and predictions metrics
+Example combinations:
+We ran for the full period with the following command we 100 assets
 ```bash
-python lstm_analysis.py
+# Only fetch recent data
+python main.py --fetch_data True --start_date "2020-01-01" --end_date "2024-12-31"
+python main.py --market_analysis True --lstm_analysis True
+
 ```
 
-### Run main.py to run both market analysis and lstm analysis with plots and prior data fetching
-```bash
-python main.py
-```
-
-## Directory Structure
+## Output Structure
 ```
 crypto-regime-analysis/
 ├── data/
 │   ├── raw/                  # Raw price data
 │   └── plots/               # Visualizations
+│       ├── market_analysis/  # Clustering and regime plots
+│       └── lstm_analysis/    # LSTM prediction plots
 ├── src/
 │   ├── clustering/          # Clustering algorithms
 │   ├── data_processing/     # Data preparation
 │   ├── models/              # LSTM implementation
 ├── main.py                  # Main file to run the project
-├── market_analysis.py      # Market analysis
-├── lstm_analysis.py        # LSTM analysis
+├── market_analysis.py       # Market analysis
+├── lstm_analysis.py         # LSTM analysis
 ```
+
+## Generated Plots
+The analysis will generate various plots in the `data/plots` directory:
+Note: all plots are in html and needs to be opened in a browser to be displayed.
+- Market Analysis (`data/plots/market_analysis/`):
+  - Regime distribution plots
+  - Clustering visualizations
+  - Transition matrices
+  - Volatility analysis
+- LSTM Analysis (`data/plots/lstm_analysis/`):
+  - Performance metrics
+  - Training history
