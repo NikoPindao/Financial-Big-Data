@@ -11,3 +11,4 @@ kneed
 plotly
 matplotlib
 seaborn
+torch
