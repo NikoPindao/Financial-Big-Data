@@ -12,3 +12,4 @@ plotly
 matplotlib
 seaborn
 torch
+community

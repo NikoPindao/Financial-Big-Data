@@ -41,9 +41,9 @@ pip install -r requirements.txt
 ## Usage
 ### 1. Data Collection
 #### Option 1: Download from Binance API
-Download historical data from the Binance API with customizable parameters:
+Download historical data from the Binance API with customizable parameters, you should always follow the same format for the date and time (YYYY-MM-DD HH:MM:SS).
 ```bash
-python main.py --fetch_data True --start_date "2020-01-01" --end_date "2024-12-31" --top_n 100
+python main.py --fetch_data True --start_date "2020-01-01 00:00:00" --end_date "2024-12-31 23:59:59" --top_n 100
 ```
 Parameters:
 - `start_date`: Start date for data collection (default: "2020-01-01")

@@ -20,7 +20,7 @@ def run_data_fetching(start_date="2020-01-01 00:00:00", end_date="2024-12-31 00:
     """
     print(f"Fetching data for top {top_n} cryptocurrencies from {start_date} to {end_date}")
     fetcher = CryptoDataFetcher()
-    fetcher.fetch_all_crypto_data(start_date, end_date, top_n)
+    fetcher.fetch_all_crypto_data(start_date, end_date, limit=top_n)
 
 
 def run_market_analysis(period=None):
